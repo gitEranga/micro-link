@@ -1,0 +1,55 @@
+name: Deploy to AWS Amplify
+
+on:
+  workflow_run:
+    workflows: ["Continuous Integration"]
+    branches: [main]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    name: Deploy to AWS Amplify
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.14.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore cached build
+        uses: actions/cache@v3
+        with:
+          path: |
+            .next
+            node_modules
+          key: ${{ runner.os }}-nextjs-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install AWS Amplify CLI
+        run: npm install -g @aws-amplify/cli
+
+      - name: Deploy to AWS Amplify
+        run: |
+          amplify init --amplify "{\"envName\":\"production\"}" --yes
+          amplify publish --yes
+        env:
+          AMPLIFY_APP_ID: ${{ secrets.AMPLIFY_APP_ID }}
+          AMPLIFY_BRANCH: main
