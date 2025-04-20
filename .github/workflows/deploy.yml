@@ -1,0 +1,110 @@
+name: Deploy to AWS Amplify
+
+on:
+  workflow_run:
+    workflows: ["Continuous Integration"]
+    branches: [main]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    name: Deploy to AWS Amplify
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.14.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore cached build
+        uses: actions/cache@v3
+        with:
+          path: |
+            .next
+            node_modules
+          key: ${{ runner.os }}-nextjs-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install AWS CLI and Amplify CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          npm install -g @aws-amplify/cli
+
+      - name: Check for existing Amplify app or create new one
+        id: amplify-app
+        run: |
+          # Set app name based on repository name
+          APP_NAME="${GITHUB_REPOSITORY#*/}"
+          
+          # Check if app already exists
+          EXISTING_APP=$(aws amplify list-apps --query "apps[?name=='$APP_NAME'].appId" --output text)
+          
+          if [ -z "$EXISTING_APP" ] || [ "$EXISTING_APP" == "None" ]; then
+            echo "Creating new Amplify app: $APP_NAME"
+            # Create new Amplify app
+            RESPONSE=$(aws amplify create-app --name "$APP_NAME" --repository "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" --platform WEB)
+            APP_ID=$(echo $RESPONSE | jq -r '.app.appId')
+            
+            # Create branch for the app
+            aws amplify create-branch --app-id "$APP_ID" --branch-name main
+          else
+            echo "Using existing Amplify app with ID: $EXISTING_APP"
+            APP_ID=$EXISTING_APP
+          fi
+          
+          echo "AMPLIFY_APP_ID=$APP_ID" >> $GITHUB_ENV
+          echo "amplify_app_id=$APP_ID" >> $GITHUB_OUTPUT
+
+      - name: Initialize Amplify project
+        run: |
+          # Create amplify config file if it doesn't exist
+          if [ ! -f "amplify/.config/project-config.json" ]; then
+            mkdir -p amplify/.config
+            cat > amplify/.config/project-config.json << EOF
+          {
+            "projectName": "${{ github.event.repository.name }}",
+            "version": "3.1",
+            "frontend": "javascript",
+            "javascript": {
+              "framework": "react",
+              "config": {
+                "SourceDir": "src",
+                "DistributionDir": ".next",
+                "BuildCommand": "npm run build",
+                "StartCommand": "npm run start"
+              }
+            },
+            "providers": [
+              "awscloudformation"
+            ]
+          }
+          EOF
+          fi
+
+      - name: Deploy to AWS Amplify
+        run: |
+          # Start the deployment
+          aws amplify start-job --app-id $AMPLIFY_APP_ID --branch-name main --job-type RELEASE
+          
+          echo "Deployment started for app ID: $AMPLIFY_APP_ID"
+          echo "You can view your deployment at: https://${{ steps.amplify-app.outputs.amplify_app_id }}.amplifyapp.com"
