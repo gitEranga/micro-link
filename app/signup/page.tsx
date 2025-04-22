@@ -35,7 +35,7 @@ export default function SignupPage() {
           <div className="flex items-center justify-center mb-2">
             <Link href="/" className="flex items-center gap-2">
               <Link2 className="h-6 w-6" />
-              <span className="text-xl font-bold">Micro Link</span>
+              <span className="text-xl font-bold">Mini Link</span>
             </Link>
           </div>
           <CardTitle className="text-2xl text-center">Create an account</CardTitle>
