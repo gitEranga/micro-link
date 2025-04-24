@@ -37,8 +37,15 @@ export async function GET(request: NextRequest, { params }: { params: { shortCod
   link.clicks += 1
   link.lastClicked = new Date().toISOString()
 
-  // In a real app, we would also log analytics data here
-  // Such as IP address, referrer, user agent, etc.
+  // Log the event for server-side analytics
+  console.log(JSON.stringify({
+    event: "link_clicked",
+    shortCode,
+    originalUrl: link.originalUrl,
+    timestamp: new Date().toISOString(),
+    referrer: request.headers.get('referer') || 'direct',
+    userAgent: request.headers.get('user-agent') || 'unknown'
+  }))
 
   // Redirect to the original URL
   return NextResponse.redirect(link.originalUrl)
