@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { BarChart3, ExternalLink, Link2, LogOut, Settings, User } from "lucide-react"
+import { useState, useEffect } from "react"
+import { BarChart3, ExternalLink, Link2, LogOut, Settings, User } from 'lucide-react'
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LinkCard } from "@/components/link-card"
 import { LinkAnalyticsModal } from "@/components/link-analytics-modal"
 import { CreateLinkForm } from "@/components/create-link-form"
+import { trackEvent } from '@/lib/analytics';
 
 // Mock data for links
 const mockLinks = [
@@ -45,16 +46,47 @@ const mockLinks = [
   },
 ]
 
+// Create a safe analytics tracking function
+function trackEvent(eventName: string, data: Record<string, any>): void {
+  if (typeof window !== 'undefined') {
+    const ddRum = (window as any).DD_RUM;
+    if (ddRum && typeof ddRum.addAction === 'function') {
+      ddRum.addAction(eventName, {
+        ...data,
+        timestamp: data.timestamp || new Date().toISOString()
+      });
+    }
+  }
+}
+
 export default function DashboardPage() {
   const [links, setLinks] = useState(mockLinks)
   const [selectedLink, setSelectedLink] = useState<(typeof mockLinks)[0] | null>(null)
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false)
 
+  // Calculate totalClicks - this was missing in your code
   const totalClicks = links.reduce((sum, link) => sum + link.clicks, 0)
 
+  // Track dashboard metrics when component mounts
+  useEffect(() => {
+    trackEvent('view_dashboard', {
+      totalLinks: links.length,
+      totalClicks,
+      averageClicks: links.length ? Math.round(totalClicks / links.length) : 0
+    });
+  }, [links.length, totalClicks]);
+
+  // Add the missing handleViewAnalytics function
   const handleViewAnalytics = (link: (typeof mockLinks)[0]) => {
     setSelectedLink(link)
     setIsAnalyticsOpen(true)
+    
+    // Track analytics view event
+    trackEvent('view_link_analytics', {
+      linkId: link.id,
+      shortUrl: link.shortUrl,
+      clicks: link.clicks
+    });
   }
 
   const handleCreateLink = (originalUrl: string) => {
@@ -65,16 +97,25 @@ export default function DashboardPage() {
       shortCode += characters.charAt(Math.floor(Math.random() * characters.length))
     }
 
+    const shortUrl = `micro.link/${shortCode}`
+    
     const newLink = {
       id: Date.now().toString(),
       originalUrl,
-      shortUrl: `micro.link/${shortCode}`,
+      shortUrl,
       createdAt: new Date().toISOString(),
       clicks: 0,
       lastClicked: "",
     }
 
     setLinks([newLink, ...links])
+    
+    // Use the safe tracking function instead of direct window access
+    trackEvent('link_created', {
+      originalUrl,
+      shortUrl,
+      source: 'dashboard'
+    });
   }
 
   return (

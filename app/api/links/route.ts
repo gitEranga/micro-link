@@ -63,6 +63,15 @@ export async function POST(request: NextRequest) {
     // Add the new link to our "database"
     links.push(newLink)
 
+    // Log the event for server-side analytics
+    console.log(JSON.stringify({
+      event: "link_created",
+      originalUrl,
+      shortCode,
+      userId,
+      timestamp: new Date().toISOString()
+    }))
+
     return NextResponse.json(newLink, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: "Failed to create link" }, { status: 500 })
