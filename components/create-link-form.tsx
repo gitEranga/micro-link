@@ -1,9 +1,8 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
-import { Link2 } from "lucide-react"
+import { Link2 } from 'lucide-react'
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,6 +39,16 @@ export function CreateLinkForm({ onSubmit }: CreateLinkFormProps) {
       // Simulate API call
       setTimeout(() => {
         onSubmit(urlToValidate)
+        
+        // Add Datadog RUM custom event tracking here
+        if (typeof window !== 'undefined' && window.DD_RUM) {
+          window.DD_RUM.addAction('link_created', {
+            originalUrl: urlToValidate,
+            timestamp: new Date().toISOString(),
+            source: 'create_form'
+          })
+        }
+        
         setUrl("")
         setIsLoading(false)
         toast({

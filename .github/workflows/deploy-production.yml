@@ -1,0 +1,122 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+
+jobs:
+  deploy-production:
+    name: Deploy to Production (Blue-Green)
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      - name: Install Amplify CLI
+        run: npm install -g @aws-amplify/cli
+      
+      # Deploy to the "blue" environment (inactive)
+      - name: Deploy to Blue Environment
+        id: deploy-blue
+        run: |
+          # Determine which environment is currently inactive (blue)
+          CURRENT_VERSION=$(aws amplify get-branch --app-id $AMPLIFY_APP_ID --branch-name main --query 'branch.displayName' --output text)
+          
+          if [ "$CURRENT_VERSION" == "green" ]; then
+            DEPLOY_ENV="blue"
+          else
+            DEPLOY_ENV="green"
+          fi
+          
+          echo "Deploying to $DEPLOY_ENV environment"
+          echo "deploy_env=$DEPLOY_ENV" >> $GITHUB_OUTPUT
+          
+          # Deploy to the inactive environment
+          amplify init --amplify "{\"envName\":\"$DEPLOY_ENV\"}" --yes
+          amplify publish --yes
+        env:
+          AMPLIFY_APP_ID: ${{ secrets.AMPLIFY_APP_ID }}
+          AMPLIFY_BRANCH: main-${{ steps.deploy-blue.outputs.deploy_env }}
+      
+      # Run smoke tests against the blue environment
+      - name: Run Smoke Tests
+        id: smoke-tests
+        run: |
+          # Run smoke tests against the blue environment
+          BLUE_URL="https://${{ steps.deploy-blue.outputs.deploy_env }}.your-app-domain.com"
+          
+          # Simple smoke test with curl
+          RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" $BLUE_URL)
+          
+          if [ $RESPONSE_CODE -eq 200 ]; then
+            echo "Smoke tests passed!"
+            echo "smoke_tests_passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "Smoke tests failed! Response code: $RESPONSE_CODE"
+            echo "smoke_tests_passed=false" >> $GITHUB_OUTPUT
+          fi
+      
+      # Switch traffic to the blue environment if smoke tests pass
+      - name: Switch Traffic
+        if: steps.smoke-tests.outputs.smoke_tests_passed == 'true'
+        run: |
+          # Update CloudFront distribution to point to the new environment
+          aws cloudfront update-distribution \
+            --id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --default-cache-behavior "{\"TargetOriginId\":\"${{ steps.deploy-blue.outputs.deploy_env }}.your-app-domain.com\"}"
+          
+          # Update the branch display name to indicate it's now active
+          aws amplify update-branch \
+            --app-id $AMPLIFY_APP_ID \
+            --branch-name main-${{ steps.deploy-blue.outputs.deploy_env }} \
+            --display-name "${{ steps.deploy-blue.outputs.deploy_env }}"
+          
+          # Invalidate CloudFront cache
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+        env:
+          AMPLIFY_APP_ID: ${{ secrets.AMPLIFY_APP_ID }}
+      
+      - name: Notify Datadog of Deployment
+        run: |
+          DEPLOYMENT_STATUS="failed"
+          if [ "${{ steps.smoke-tests.outputs.smoke_tests_passed }}" == "true" ]; then
+            DEPLOYMENT_STATUS="successful"
+          fi
+          
+          curl -X POST "https://api.datadoghq.com/api/v1/events" \
+          -H "Content-Type: application/json" \
+          -H "DD-API-KEY: ${DD_API_KEY}" \
+          -d @- << EOF
+          {
+            "title": "Deployment to Production ($DEPLOYMENT_STATUS)",
+            "text": "Deployed to ${{ steps.deploy-blue.outputs.deploy_env }} environment and switched traffic",
+            "tags": ["environment:production", "service:micro-link", "version:${{ github.sha }}"],
+            "alert_type": "info",
+            "source_type_name": "github"
+          }
+          EOF
+        env:
+          DD_API_KEY: ${{ secrets.DATADOG_API_KEY }}

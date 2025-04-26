@@ -16,7 +16,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LinkCard } from "@/components/link-card"
 import { LinkAnalyticsModal } from "@/components/link-analytics-modal"
 import { CreateLinkForm } from "@/components/create-link-form"
-import { trackEvent } from '@/lib/analytics';
 
 // Mock data for links
 const mockLinks = [

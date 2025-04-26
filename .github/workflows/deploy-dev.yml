@@ -1,0 +1,59 @@
+name: Deploy to Development
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      - name: Install Amplify CLI
+        run: npm install -g @aws-amplify/cli
+      
+      - name: Deploy to Amplify (Development)
+        run: |
+          amplify init --amplify "{\"envName\":\"dev\"}" --yes
+          amplify publish --yes
+        env:
+          AMPLIFY_APP_ID: ${{ secrets.AMPLIFY_APP_ID }}
+          AMPLIFY_BRANCH: develop
+          
+      - name: Notify Datadog of Deployment
+        run: |
+          curl -X POST "https://api.datadoghq.com/api/v1/events" \
+          -H "Content-Type: application/json" \
+          -H "DD-API-KEY: ${DD_API_KEY}" \
+          -d @- << EOF
+          {
+            "title": "Deployment to Development",
+            "text": "Successfully deployed to development environment",
+            "tags": ["environment:development", "service:micro-link", "version:${{ github.sha }}"],
+            "alert_type": "info",
+            "source_type_name": "github"
+          }
+          EOF
+        env:
+          DD_API_KEY: ${{ secrets.DATADOG_API_KEY }}

@@ -1,0 +1,203 @@
+{
+    "title": "Micro Link - Main Dashboard",
+    "description": "Overview of Micro Link application performance and business metrics",
+    "widgets": [
+      {
+        "id": 0,
+        "definition": {
+          "type": "group",
+          "title": "Application Health",
+          "layout_type": "ordered",
+          "widgets": [
+            {
+              "id": 1,
+              "definition": {
+                "title": "Request Rate",
+                "type": "timeseries",
+                "requests": [
+                  {
+                    "q": "sum:micro_link.api.requests{*} by {route}.as_rate()",
+                    "display_type": "line"
+                  }
+                ],
+                "yaxis": {
+                  "label": "Requests per second",
+                  "scale": "linear",
+                  "min": "0"
+                }
+              }
+            },
+            {
+              "id": 2,
+              "definition": {
+                "title": "Error Rate",
+                "type": "timeseries",
+                "requests": [
+                  {
+                    "q": "sum:micro_link.errors{*}.as_rate() / sum:micro_link.api.requests{*}.as_rate() * 100",
+                    "display_type": "line"
+                  }
+                ],
+                "yaxis": {
+                  "label": "Error Rate (%)",
+                  "scale": "linear",
+                  "min": "0",
+                  "max": "100"
+                },
+                "markers": [
+                  {
+                    "value": "5",
+                    "display_type": "warning dashed"
+                  },
+                  {
+                    "value": "10",
+                    "display_type": "error dashed"
+                  }
+                ]
+              }
+            },
+            {
+              "id": 3,
+              "definition": {
+                "title": "API Latency (p95)",
+                "type": "timeseries",
+                "requests": [
+                  {
+                    "q": "p95:micro_link.api.latency{*} by {route}",
+                    "display_type": "line"
+                  }
+                ],
+                "yaxis": {
+                  "label": "Response Time (ms)",
+                  "scale": "linear",
+                  "min": "0"
+                },
+                "markers": [
+                  {
+                    "value": "500",
+                    "display_type": "warning dashed"
+                  },
+                  {
+                    "value": "1000",
+                    "display_type": "error dashed"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": 4,
+        "definition": {
+          "type": "group",
+          "title": "Business Metrics",
+          "layout_type": "ordered",
+          "widgets": [
+            {
+              "id": 5,
+              "definition": {
+                "title": "Links Created",
+                "type": "timeseries",
+                "requests": [
+                  {
+                    "q": "sum:micro_link.links.created{*}.as_count()",
+                    "display_type": "bars"
+                  }
+                ],
+                "yaxis": {
+                  "label": "Links Created",
+                  "scale": "linear",
+                  "min": "0"
+                }
+              }
+            },
+            {
+              "id": 6,
+              "definition": {
+                "title": "Link Clicks",
+                "type": "timeseries",
+                "requests": [
+                  {
+                    "q": "sum:micro_link.links.clicked{*}.as_count()",
+                    "display_type": "bars"
+                  }
+                ],
+                "yaxis": {
+                  "label": "Link Clicks",
+                  "scale": "linear",
+                  "min": "0"
+                }
+              }
+            },
+            {
+              "id": 7,
+              "definition": {
+                "title": "User Signups",
+                "type": "timeseries",
+                "requests": [
+                  {
+                    "q": "sum:micro_link.users.signup{*}.as_count()",
+                    "display_type": "bars"
+                  }
+                ],
+                "yaxis": {
+                  "label": "New Users",
+                  "scale": "linear",
+                  "min": "0"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": 8,
+        "definition": {
+          "type": "group",
+          "title": "Infrastructure",
+          "layout_type": "ordered",
+          "widgets": [
+            {
+              "id": 9,
+              "definition": {
+                "title": "AWS Amplify Deployments",
+                "type": "event_stream",
+                "query": "sources:github,aws tags:service:micro-link",
+                "event_size": "s"
+              }
+            },
+            {
+              "id": 10,
+              "definition": {
+                "title": "CloudFront Cache Hit Ratio",
+                "type": "timeseries",
+                "requests": [
+                  {
+                    "q": "avg:aws.cloudfront.cache_hit_rate{distribution:$CLOUDFRONT_DISTRIBUTION_ID}",
+                    "display_type": "line"
+                  }
+                ],
+                "yaxis": {
+                  "label": "Hit Ratio (%)",
+                  "scale": "linear",
+                  "min": "0",
+                  "max": "100"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "template_variables": [
+      {
+        "name": "env",
+        "prefix": "env",
+        "default": "production"
+      }
+    ],
+    "layout_type": "ordered",
+    "is_read_only": false,
+    "notify_list": []
+  }

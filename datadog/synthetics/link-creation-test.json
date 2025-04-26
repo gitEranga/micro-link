@@ -1,0 +1,65 @@
+{
+    "config": {
+      "assertions": [
+        {
+          "operator": "is",
+          "type": "statusCode",
+          "target": 200
+        },
+        {
+          "operator": "lessThan",
+          "type": "responseTime",
+          "target": 3000
+        },
+        {
+          "operator": "containsText",
+          "type": "body",
+          "target": "Link created successfully"
+        }
+      ],
+      "configVariables": [],
+      "request": {
+        "method": "POST",
+        "url": "https://{{ENVIRONMENT}}.your-app-domain.com/api/links",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"originalUrl\":\"https://example.com/test-url-{{TIMESTAMP}}\"}"
+      },
+      "variables": [
+        {
+          "name": "ENVIRONMENT",
+          "type": "text",
+          "example": "production",
+          "pattern": "production|staging|dev"
+        },
+        {
+          "name": "TIMESTAMP",
+          "type": "text",
+          "example": "1234567890",
+          "pattern": "\\d+"
+        }
+      ]
+    },
+    "locations": ["aws:us-east-1", "aws:eu-west-1"],
+    "message": "The link creation API is not responding correctly",
+    "name": "Micro Link - Link Creation API",
+    "options": {
+      "ci": {
+        "enabled": true
+      },
+      "device_ids": ["chrome.laptop"],
+      "follow_redirects": true,
+      "min_failure_duration": 300,
+      "min_location_failed": 1,
+      "retry": {
+        "count": 2,
+        "interval": 300
+      },
+      "tick_every": 900
+    },
+    "status": "live",
+    "subtype": "http",
+    "tags": ["app:micro-link", "env:production", "team:backend"],
+    "type": "api"
+  }
