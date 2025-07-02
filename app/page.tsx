@@ -130,7 +130,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-bold mb-2">Pro</h3>
                 <p className="text-3xl font-bold mb-4">
-                  $12<span className="text-primary-foreground/70 text-sm font-normal">/month</span>
+                  Rs:1200<span className="text-primary-foreground/70 text-sm font-normal">/month</span>
                 </p>
                 <p className="text-primary-foreground/70 mb-6">For professionals and small teams.</p>
                 <ul className="space-y-2 mb-6 flex-1">
