@@ -1,7 +1,12 @@
 name: Deploy to Staging
 
 on:
+<<<<<<< HEAD
   pull_request:
+=======
+  workflow_dispatch:
+  #pull_request:
+>>>>>>> 99d80d84b58e08c277d7f748552d6607cb1de566
     branches:
       - main
     types: [closed]
@@ -58,4 +63,8 @@ jobs:
           }
           EOF
         env:
+<<<<<<< HEAD
           DD_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+=======
+          DD_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+>>>>>>> 99d80d84b58e08c277d7f748552d6607cb1de566

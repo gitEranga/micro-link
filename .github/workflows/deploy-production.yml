@@ -1,7 +1,12 @@
 name: Deploy to Production
 
 on:
+<<<<<<< HEAD
   push:
+=======
+  workflow_dispatch:
+  #push:
+>>>>>>> 99d80d84b58e08c277d7f748552d6607cb1de566
     branches:
       - main
     paths-ignore:
@@ -119,4 +124,8 @@ jobs:
           }
           EOF
         env:
+<<<<<<< HEAD
           DD_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+=======
+          DD_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+>>>>>>> 99d80d84b58e08c277d7f748552d6607cb1de566
