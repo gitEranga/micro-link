@@ -2,9 +2,13 @@ name: DAST Security Scan
 
 on:
   workflow_run:
-    workflows: ["Deploy to Staging"]
+    workflows: ["Deploy to AWS Amplify"]
     types:
       - completed
 
 jobs:
   zap-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder step
+        run: echo "Run your ZAP scan here"
